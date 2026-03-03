@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LatencyLab — Internet Physics Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark">
+        <div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div>
+      </div>
+      <span class="logo-text">LATENCY<span>/</span>LAB</span>
+    </div>
+    <div class="h-div"></div>
+    <div class="header-meta">
+      <div class="app-title">Internet Physics Playground</div>
+      <div class="app-sub">Simulate · Visualize · Understand</div>
+    </div>
+    <div class="header-right">
+      <span class="scenario-label">SCENARIO —</span>
+      <div class="tab-bar" id="scenarioTabs">
+        <button class="tab active" data-scenario="whatsapp">WhatsApp</button>
+        <button class="tab" data-scenario="http1">HTTP/1.1</button>
+        <button class="tab" data-scenario="tcp">TCP Handshake</button>
+        <button class="tab" data-scenario="quic">QUIC</button>
+        <button class="tab" data-scenario="custom">Custom</button>
+      </div>
+      <div class="status-dot" id="statusDot"></div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <section>
+        <div class="section-head">Network Parameters</div>
+
+        <div class="control">
+          <div class="ctrl-row">
+            <span class="ctrl-name">Round-Trip Time</span>
+            <span class="ctrl-val" id="rttVal">80 ms</span>
+          </div>
+          <input type="range" id="rttSlider" min="1" max="500" value="80" />
+          <div class="ctrl-hint">NY→London physics floor ≈ 70 ms</div>
+        </div>
+
+        <div class="control">
+          <div class="ctrl-row">
+            <span class="ctrl-name">Packet Loss</span>
+            <span class="ctrl-val" id="lossVal">0.0%</span>
+          </div>
+          <input type="range" id="lossSlider" min="0" max="200" value="0" />
+          <div class="ctrl-hint">WiFi ~0.1% · 4G ~0.5–2% · Bad &gt;5%</div>
+        </div>
+
+        <div class="control">
+          <div class="ctrl-row">
+            <span class="ctrl-name">Jitter (σ)</span>
+            <span class="ctrl-val" id="jitterVal">5 ms</span>
+          </div>
+          <input type="range" id="jitterSlider" min="0" max="200" value="5" />
+          <div class="ctrl-hint">Variance in arrival. Kills real-time media.</div>
+        </div>
+
+        <div class="control">
+          <div class="ctrl-row">
+            <span class="ctrl-name">Bandwidth</span>
+            <span class="ctrl-val" id="bwVal">10 Mbps</span>
+          </div>
+          <input type="range" id="bwSlider" min="1" max="200" value="10" />
+          <div class="ctrl-hint">Link capacity (not throughput)</div>
+        </div>
+
+        <div class="control">
+          <div class="ctrl-row">
+            <span class="ctrl-name">Initial CWND</span>
+            <span class="ctrl-val" id="cwndVal">10 pkts</span>
+          </div>
+          <input type="range" id="cwndSlider" min="1" max="64" value="10" />
+          <div class="ctrl-hint">TCP congestion window. Linux default: 10</div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">Transport Protocol</div>
+        <div class="protocol-grid" id="protocolGrid">
+          <button class="proto-btn active" data-proto="tcp"><span class="proto-icon">🔗</span>TCP</button>
+          <button class="proto-btn" data-proto="quic"><span class="proto-icon">⚡</span>QUIC</button>
+          <button class="proto-btn" data-proto="udp"><span class="proto-icon">📡</span>UDP</button>
+          <button class="proto-btn" data-proto="http3"><span class="proto-icon">🌐</span>HTTP/3</button>
+        </div>
+      </section>
+
+      <section>
+        <button class="run-btn" id="runBtn">▶ RUN SIMULATION</button>
+      </section>
+
+      <section>
+        <div class="section-head">Live Metrics</div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Throughput</div>
+            <div class="metric-value" id="m-throughput">—<span class="unit"> Mbps</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Eff. Latency</div>
+            <div class="metric-value" id="m-latency">—<span class="unit"> ms</span></div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Retransmits</div>
+            <div class="metric-value" id="m-retransmit">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Queue Depth</div>
+            <div class="metric-value" id="m-queue">—<span class="unit"> pkts</span></div>
+          </div>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- MAIN CANVAS -->
+    <main class="canvas-area">
+
+      <div class="top-row">
+        <div class="card" id="packetCard">
+          <div class="card-header">
+            <span class="card-title"><span class="dot cyan"></span>PACKET FLOW</span>
+            <div class="legend">
+              <span class="leg"><i class="leg-dot" style="background:var(--cyan)"></i>DATA</span>
+              <span class="leg"><i class="leg-dot" style="background:var(--green)"></i>ACK</span>
+              <span class="leg"><i class="leg-dot" style="background:var(--red)"></i>LOST</span>
+              <span class="leg"><i class="leg-dot" style="background:var(--yellow)"></i>RETX</span>
+            </div>
+          </div>
+          <canvas id="packetCanvas"></canvas>
+        </div>
+
+        <div class="card" id="explainCard">
+          <div class="card-header">
+            <span class="card-title">💡 WHY THIS HAPPENS</span>
+          </div>
+          <div class="explain-body" id="explainPanel">
+            <div class="explain good">
+              <strong>Pick a scenario</strong> and hit Run to see a live explanation of what's happening on the wire.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><span class="dot cyan"></span>REQUEST TIMELINE</span>
+            <span class="badge">ms</span>
+          </div>
+          <div class="card-body"><canvas id="timelineChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><span class="dot green"></span>BANDWIDTH UTILIZATION</span>
+            <span class="badge">Mbps</span>
+          </div>
+          <div class="card-body"><canvas id="bandwidthChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><span class="dot red"></span>RETRANSMISSION BURSTS</span>
+            <span class="badge">pkts</span>
+          </div>
+          <div class="card-body"><canvas id="retransChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><span class="dot yellow"></span>QUEUE BUILDUP</span>
+            <span class="badge">pkts</span>
+          </div>
+          <div class="card-body"><canvas id="queueChart"></canvas></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="simulator.js"></script>
+<script src="packets.js"></script>
+<script src="charts.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
